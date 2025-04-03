@@ -306,7 +306,7 @@ elif pagina == 'Analyse':
     'Om dit te bekijken kunnen 2 variabelen tegen overlevingskans geplot worden.')
     def plot_barchart(data, target='Survived'):
         # Keuze voor de onafhankelijke variabelen
-        keuze = ['Sex','Age_categories','IsAlone','Embarked','Pclass']
+        keuze = ['Sex','Age_categories','IsAlone','Embarked','Pclass','Title']
         var1 = st.selectbox('Kies de eerste onafhankelijke variabele:', keuze)
         keuze.remove(var1)
         var2 = st.selectbox('Kies de tweede onafhankelijke variabele:', keuze)
@@ -327,14 +327,14 @@ elif pagina == 'Analyse':
 
         # Maak de bar chart met percentages
         fig = px.bar(merged_data, x=var1, y='Percentage', color=var2,
-                    labels={var1: var1, 'Percentage': f'Percentage {target} = 1', var2: var2},
+                    labels={var1: var1, 'Percentage': f'%{target}', var2: var2},
                     title=f'Percentage {target} per {var1} en {var2}',
                     barmode='group')
-        fig.update_traces(text=merged_data['Percentage'].round(2).astype(str) + '%',
-                      textposition='outside',
-                      texttemplate='%{text}')
+        # fig.update_traces(text=merged_data['Percentage'].round(2).astype(str) + '%',
+        #               textposition='outside',
+        #               texttemplate='%{text}')
         fig.update_layout(yaxis=dict(range=[0, 100])) 
-        
+
         # Toon de grafiek
         st.plotly_chart(fig)
 
@@ -342,9 +342,16 @@ elif pagina == 'Analyse':
     plot_barchart(train_new)
     
     st.info("Intressante mogelijkheden zijn: \n" \
-    "* Gelacht tegen leeftijd: Dit laat jonge mannen een hogere overlevingskans hebben. De vrouwen lijken allemaal een hoge overlevingskans te hebben" \
-    "   * Daarbij is wel goed zichtbaar dat als kinderen geen reisgezelschap hebben hun overlevingskans minimaal is. \n" \
-    "")
+    "* Gelacht tegen leeftijd: \n"
+    "   * Dit laat jonge mannen een hogere overlevingskans hebben. \n"
+    "   * De vrouwen lijken allemaal een hoge overlevingskans te hebben \n"
+    "   * Daarbij is wel goed zichtbaar dat als kinderen geen reisgezelschap hebben hun overlevingskans minimaal is. \n" 
+    "   * Bekijk je de klasse erbij zie je dat vrouwen met een leeftijd tussen de 35 en 64 in de 1e klas een hogere overlevingskans hebben. \n"
+    "* Title tegen opstaplocatie: \n"
+    "   * Dit laat zien dat als Mrs's die op zijn gestapt in Queenstown geen grote overlevingskans hebben. \n"
+    "- Uiteraard zijn er nog meer combinaties met informatie er uit te halen. Let hierbij wel goed op dat het soms eruit kan zien alof niemand het ergens overleefd heeft," \
+    "Maar dit betekend waarschijnlijk dat er daar geen persoon van was (door de grootte van de dataset(klein)) "
+    )
     
 elif pagina == 'Voorspellend model':
     st.header('Voorspelling')

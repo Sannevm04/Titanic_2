@@ -9,9 +9,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from scipy import stats
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from streamlit_option_menu import option_menu
 import plotly.subplots as sp
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score
 
 # opmaak
 st.set_page_config(
@@ -48,12 +52,76 @@ def load_train_new():
     # travel alone, of met gezelschap
     train_new['Travel_budy'] = train_new['SibSp'] + train_new['Parch'] + 1
     train_new['IsAlone'] = (train_new['Travel_budy'] == 1).astype(int)
+    train_new['Family'] = (train_new['Parch'] + train_new['SibSp']).apply(lambda x: 1 if x > 0 else 0)
+    train_new['Small_fam'] = (train_new['Parch'] + train_new['SibSp'] + 1).apply(lambda x: 1 if x < 5 else 0)
 
     # Naam naar titels geven
     train_new['Title'] = train_new['Name'].str.extract(r' ([A-Za-z]+)\.', expand=False)
     train_new['Title'] = train_new['Title'].map(lambda x: title_mapping.get(x, 5))
+    
+    # locaties
     train_new['Embarked'] = train_new['Embarked'].replace({'S':'Southampthon', 'C':'Cherbourgh', 'Q': 'Queenstown'})
+
+    # leeftijd en geslacht
+    def child_female_male(passenger):
+        Age, Sex = passenger
+        if Age < 16:
+            return 'child'
+        else:
+            return Sex
+    train_new['Type'] = train_new[['Age', 'Sex']].apply(child_female_male, axis = 1)
+
+    # fare
+    train_new['Fare']= train_new['Fare'].astype(int)
     return train_new
+
+@st.cache_data
+def load_test_new():
+    test_df = pd.read_csv("test.csv")
+
+    # leeftijd
+    test_df['Age'] = test_df['Age'].fillna(test_df['Age'].median())
+    def leeftijdscategorie(leeftijd):
+        if leeftijd < 16:
+            return 1
+        elif 16 <= leeftijd <= 34:
+            return 2
+        elif 35 <= leeftijd <= 49:
+            return 3
+        elif 50 <= leeftijd <= 64:
+            return 4
+        else:
+            return 5
+    df= pd.DataFrame({'Leeftijd': test_df['Age']})
+    test_df['Age_categories'] = test_df['Age'].apply(leeftijdscategorie)
+
+    #reisgenoten
+    test_df['Travel_budy'] =test_df['SibSp'] + test_df['Parch'] + 1
+    test_df['IsAlone'] = (test_df['Travel_budy'] == 1).astype(int)
+    test_df['Family'] = (test_df['Parch'] + test_df['SibSp']).apply(lambda x: 1 if x > 0 else 0)
+    test_df['Small_fam'] = (test_df['Parch'] + test_df['SibSp'] + 1).apply(lambda x: 1 if x < 5 else 0)
+
+    # titels
+    test_df['Title'] = test_df['Name'].str.extract(r' ([A-Za-z]+)\.', expand=False)
+    test_df['Title'] = test_df['Title'].map(lambda x: title_mapping.get(x, 5))
+   
+    # locaties
+    test_df['Embarked'].fillna('S', inplace=True)
+    test_df['Embarked'] = test_df['Embarked'].replace({'S':'Southampthon', 'C':'Cherbourgh', 'Q': 'Queenstown'})
+
+    # Faire
+    test_df["Fare"].fillna(test_df["Fare"].median(), inplace=True)
+    test_df['Fare'] = test_df['Fare'].astype(int)
+
+    # leeftijd en geslacht
+    def child_female_male(passenger):
+        Age, Sex = passenger
+        if Age < 16:
+            return 'child'
+        else:
+            return Sex
+    test_df['Type'] = test_df[['Age', 'Sex']].apply(child_female_male, axis = 1)
+    return test_df
 
 title_mapping = {"Mr": 1, "Miss": 2, "Mrs": 3, "Master": 4, 'Rare':5, "Sir":1,"Lady":3}
 title_demapping = {1: "Mr", 2: "Miss", 3: "Mrs", 4: "Master", 5: "Rare"}
@@ -67,8 +135,11 @@ Alone_mapping = {'Alleen':1, 'Samen':0}
 Alone_demapping = {1:'Alleen', 0:'Samen'}
 Age_cat_mapping = {'Kind (<16)':1, 'Jong volwassen (16<=34)':2, 'Volwassen (35<=49)':3, 'Middelbare leeftijd (50<=64)':4, 'Oudere (>65)':5}
 Age_cat_demapping = {1: 'Kind (<16)', 2:'Jong volwassen (16<=34)', 3:'Volwassen (35<=49)', 4:'Middelbare leeftijd (50<=64)', 5:'Oudere (>65)'}
+type_mapping = {'male':1,'female':2,'child':3}
+type_demapping = {1:'male', 2:'female',3:'child'}
 
 train_new = load_train_new()
+test_df = load_test_new()
 
 if pagina == 'Data verkenning':
     st.header('1. Data verkenning')
@@ -120,12 +191,12 @@ if pagina == 'Data verkenning':
     "* Voorvoegsel van de naam is achterhaald")
 
     # Nieuwe data kolommen
-    st.dataframe(train_new[['Age','Age_categories','Travel_budy', 'IsAlone','Title']].head())
+    st.dataframe(train_new[['Age','Age_categories','Travel_budy', 'IsAlone','Title', 'Family','Type','Small_fam']].head())
 
     st.subheader('1.3 correlatie matrix')
-    train_new['Sex'] = train_new['Sex'].map(sex_mapping)
+    train_new['Type'] = train_new['Type'].map(type_mapping)
     train_new['Embarked'] = train_new['Embarked'].map(embarked_mapping)
-    correlatie_matrix = train_new.drop(columns=['Name']).corr()
+    correlatie_matrix = train_new.drop(columns=['Name','Sex']).corr()
     correlatie_matrix['abs'] = correlatie_matrix['Survived'].abs()
     def classificatie(r):
         if abs(r) > 0.5:
@@ -137,7 +208,7 @@ if pagina == 'Data verkenning':
         else:
             return "Geen"
     correlatie_matrix['Sterkte'] = correlatie_matrix['Survived'].apply(classificatie)
-    correlatie_matrix = correlatie_matrix.sort_values(by='abs', ascending=False).drop(columns=['abs'])
+    correlatie_matrix = correlatie_matrix.drop('Survived').sort_values(by='abs', ascending=False).drop(columns=['abs'])
     
     # Maak aangepaste annotaties met zowel de correlatie als de classificatie
     annotaties = correlatie_matrix.apply(lambda row: f"{row['Survived']:.2f}\n({row['Sterkte']})", axis=1)
@@ -150,25 +221,27 @@ if pagina == 'Data verkenning':
     ax.set_title("Correlatie over de overlevingskans op de Titanic")
     # Display plot in Streamlit
     st.pyplot(fig)
-    st.info("Het lijkt interessant te zijn om te kijken naar:  \n* Geslacht  \n* Title  \n* Klas  "
-    "\n* Ticketprijs   \n* Alleen of samen reizen  \n* Daarnaast zal leeftijd en opstaplocatie ook nog is meegenomen worden.")
+    st.info("Het lijkt interessant te zijn om te kijken naar:  \n* Type (geslacht en kind)  \n* Title  \n* Klas  "
+    "\n* Ticketprijs   \n* Familie  \n* Alleen of samen reizen  \n* Leeftijd (in groepen) \n" \
+    "* Groote van de familie \n* Opstaplocatie")
 
     st.subheader("1.4 Verdieping in de variabelen")
     st.write("Om meer inzicht te krijgen in de variabelen kan hieronder gekozen worden voor variabelen waar meer verdiept in kan worden")
-    Variabele = st.selectbox("Selecteer een variabele",options=['Sex','Title','Pclass','Fare','IsAlone','Age_categories','Embarked'])
+    Variabele = st.selectbox("Selecteer een variabele",options=['Type','Title','Pclass','Fare','IsAlone','Age_categories','Embarked','Small_fam'])
     
     st.markdown("##### 1.4.1 Histogram")
-    train_new['Sex'] = train_new['Sex'].map(sex_demapping)
+    train_new['Type'] = train_new['Type'].map(type_demapping)
     train_new['Embarked'] = train_new['Embarked'].map(embarked_demapping)
     train_new['Title'] = train_new['Title'].map(title_demapping)
     train_new['Pclass'] = train_new['Pclass'].map(Pclass_demapping)
     train_new['IsAlone'] = train_new['IsAlone'].map(Alone_demapping)
     train_new['Age_categories'] = train_new['Age_categories'].map(Age_cat_demapping)
 
-    if Variabele == "Sex":
+    if Variabele == "Type":
         kleur_dict = {
         "male": "lightblue",  
-        "female": "pink"}
+        "female": "pink",
+        "child": "lightgreen"}
         fig = px.histogram(train_new, x=Variabele, title=f"Histogram van {Variabele}",
                         color=train_new['Sex'],
                         color_discrete_map=kleur_dict)
@@ -180,14 +253,14 @@ if pagina == 'Data verkenning':
     
     
     st.markdown("##### 1.4.2 Onderlinge correlatie")
-    train_new['Sex'] = train_new['Sex'].map(sex_mapping)
+    train_new['Type'] = train_new['Type'].map(type_mapping)
     train_new['Embarked'] = train_new['Embarked'].map(embarked_mapping)
     train_new['Title'] = train_new['Title'].map(title_mapping)
     train_new['Pclass'] = train_new['Pclass'].map(Pclass_mapping)
     train_new['IsAlone'] = train_new['IsAlone'].map(Alone_mapping)
     train_new['Age_categories'] = train_new['Age_categories'].map(Age_cat_mapping)
 
-    correlatie_matrix_Var = train_new.drop(columns=['Name','Age','SibSp','Parch']).corr()
+    correlatie_matrix_Var = train_new.drop(columns=['Name','Age','SibSp','Parch','Sex',"Family"]).corr()
     correlatie_matrix_Var['abs'] = correlatie_matrix_Var[Variabele].abs()
     correlatie_matrix_Var['Sterkte'] = correlatie_matrix_Var[Variabele].apply(classificatie)
     correlatie_matrix_Var = correlatie_matrix_Var.sort_values(by='abs', ascending=False).drop(columns=['abs']).head(3)
@@ -233,7 +306,9 @@ if pagina == 'Data verkenning':
 elif pagina == 'Analyse':
     st.header('2. Analyse')
     st.write('De onafhankelijke variabelen zullen hier verder onderzocht worden tegenover de afhankelijke varariabele: overleefingskans.')
-    
+    train_new['Age'].fillna(train_new['Age'].median(), inplace=True)
+    train_new['Embarked'].fillna('S', inplace=True)
+
     st.subheader('2.1 Individuele variabelen tegenover overlevingskans')
     #demapping
     train_new['Title'] = train_new['Title'].map(title_demapping)
@@ -241,17 +316,9 @@ elif pagina == 'Analyse':
     train_new['IsAlone'] = train_new['IsAlone'].map(Alone_demapping)
     train_new["Pclass"] = train_new["Pclass"].map(Pclass_demapping)
 
-    # Voorbeeld dataset (vervang dit door je eigen dataset)
-    train_old = pd.DataFrame({
-        'Pclass': [1, 2, 3, 1, 2, 3, 1, 2, 3, 1],
-        'Survived': [1, 0, 1, 1, 1, 0, 0, 1, 1, 0],
-        'Age': [22, 38, 26, 35, 28, 42, 30, 25, 31, 24],
-        'Sex': ['male', 'female', 'female', 'male', 'male', 'female', 'male', 'female', 'female', 'male']
-    })
-
     # Functie om overlevingskans per categorie te berekenen en te plotten
     def plot_multiple_graphs(data, variables, target='Survived'):
-        rows, cols = 2, 3
+        rows, cols = 4, 2
         fig = sp.make_subplots(rows=rows, cols=cols, subplot_titles=variables)
 
         for i, variable in enumerate(variables):
@@ -285,7 +352,8 @@ elif pagina == 'Analyse':
         st.plotly_chart(fig)
 
     # Selecteer welke variabelen je wilt plotten (bijvoorbeeld 'Pclass', 'Age', 'Sex')
-    variables_to_plot = st.multiselect('Kies de variabelen om te plotten:', ['Sex','Title','Age_categories','IsAlone','Embarked','Pclass'], default=['Sex','Title','Age_categories','IsAlone','Embarked','Pclass'])
+    variables_to_plot = st.multiselect('Kies de variabelen om te plotten:', ['Type','Title','Age_categories','IsAlone','Embarked','Pclass','Family','Small_fam'], 
+                                       default=['Type','Title','Age_categories','IsAlone','Embarked','Pclass',"Family", 'Small_fam'])
 
     # Grafieken tonen
     plot_multiple_graphs(train_new, variables_to_plot)
@@ -297,8 +365,6 @@ elif pagina == 'Analyse':
     "* Bij de opstaplocaties was er een hoge overlevingskans bij Cherbourgh, en een lage bij Queenstown em Southampton.  \n"
     "* De 1e klas had nog redelijke overlevingskans. Daaropvolgde de 2e klas met een kans van 47%, dus meer overleefde het niet. De 3e klas had helaas geen geluk. \n"
     "* Als je alleen reisde was je overlevingskand klein, als je samenreisde was deze iets groter.")
-
-    
     
     
     st.subheader('2.2 elkaar ondersteunende onafhankelijke variabelen tegenover overlevingskans')
@@ -306,7 +372,7 @@ elif pagina == 'Analyse':
     'Om dit te bekijken kunnen 2 variabelen tegen overlevingskans geplot worden.')
     def plot_barchart(data, target='Survived'):
         # Keuze voor de onafhankelijke variabelen
-        keuze = ['Sex','Age_categories','IsAlone','Embarked','Pclass','Title']
+        keuze = ['Type','Title','Age_categories','IsAlone','Embarked','Pclass',"Family", 'Small_fam']
         var1 = st.selectbox('Kies de eerste onafhankelijke variabele:', keuze)
         keuze.remove(var1)
         var2 = st.selectbox('Kies de tweede onafhankelijke variabele:', keuze)
@@ -354,5 +420,169 @@ elif pagina == 'Analyse':
     )
     
 elif pagina == 'Voorspellend model':
-    st.header('Voorspelling')
-    st.write('Met dit model kwam de kaggle score uit op: ..,..%')
+    st.header('3. Voorspelling')
+    train_new['Age'].fillna(train_new['Age'].median(), inplace=True)
+    train_new['Embarked'].fillna('Southampthon', inplace=True)
+    st.subheader('3.1 voorbereiding voorspelling')
+    train_new['Embarked'] = train_new['Embarked'].map(embarked_mapping)
+    train_new['Type'] = train_new['Type'].map(type_mapping)
+    X = train_new.drop(columns=['Name', 'Sex', 'Parch', 'SibSp', 'Survived'], axis=1)
+    y = train_new['Survived']
+    st.write('De kolommen die meegenomen worden in de analyse zijn:')
+    st.write(X.head())
+    scaler = StandardScaler()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+
+    # Modellen
+    # Test verschillende waarden van n_neighbors
+    accuracies = []
+    neighbors_range = range(1, 4)
+
+    for n in neighbors_range:
+        knn = KNeighborsClassifier(n_neighbors=n)
+        knn.fit(X_train, y_train)
+        predictions = knn.predict(X_test)
+        accuracy = accuracy_score(y_test, predictions)
+        accuracies.append(accuracy)
+
+
+    st.subheader('3.2 KNN model')
+    # Vind het beste aantal buren
+    best_n = neighbors_range[accuracies.index(max(accuracies))]
+    st.info(f"Beste aantal buren: {best_n}  \n"
+            f"Hoogste nauwkeurigheid: {max(accuracies)}")
+    # Plot de nauwkeurigheid voor verschillende waarden van n_neighbors
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(neighbors_range, accuracies, marker='o', linestyle='--', color='b')
+    ax.set_title('Nauwkeurigheid vs. Aantal Buren (KNN)')
+    ax.set_xlabel('Aantal Buren (n_neighbors)')
+    ax.set_ylabel('Nauwkeurigheid')
+    ax.set_xticks(neighbors_range)
+    ax.grid()
+    st.pyplot(fig)
+
+    # Train een KNN-model met 3 buren
+    knn_model = KNeighborsClassifier(n_neighbors=4)
+    knn_scaler = StandardScaler()
+    X_train_knn_scaled = pd.DataFrame(knn_scaler.fit_transform(X_train), columns=X_train.columns)
+    X_test_knn_scaled = pd.DataFrame(knn_scaler.transform(X_test), columns=X_test.columns)
+    knn_model.fit(X_train_knn_scaled, y_train)
+    knn_predictions = knn_model.predict(X_test_knn_scaled)
+
+    # Bereken de nauwkeurigheid
+    knn_accuracy = accuracy_score(y_test, knn_predictions)
+    st.write()
+
+    test_df['Embarked'] = test_df['Embarked'].map(embarked_mapping)
+    test_df['Type'] = test_df['Type'].map(type_mapping)
+    test_df_knn = test_df.copy()
+
+    # Zorg ervoor dat test_df dezelfde preprocessing heeft ondergaan als train_df
+    X_test_df_knn = test_df_knn.drop(columns=['Name', 'Sex', 'Parch', 'SibSp', 'Survived'], errors='ignore')
+    X_test_df_knn = X_test_df_knn.reindex(columns=X_train.columns, fill_value=0)
+
+    # Schaal de testdata (gebruik dezelfde scaler als voor X_train)
+    X_test_df_knn_scaled = pd.DataFrame(knn_scaler.transform(X_test_df_knn), columns=X_test_df_knn.columns)
+
+    # Maak voorspellingen op test_df
+    test_predictions_knn = knn_model.predict(X_test_df_knn_scaled)
+    test_df_knn['Survived'] = test_predictions_knn
+
+    # Sla de resultaten op in een CSV-bestand
+    output_file_knn = "titanic_predictions_knn_3_neighbors.csv"
+    test_df_knn[['PassengerId', 'Survived']].to_csv(output_file_knn, index=False)
+
+    st.info(f"KNN Accuracy: {knn_accuracy}  \n"
+            f"Voorspellingen opgeslagen in {output_file_knn}  \n"
+            f"Aantal buren gebruikt in KNN-model: {knn_model.n_neighbors}")
+    
+
+    st.subheader('3.3 Lineare regressie')
+    
+    linear_model = LinearRegression()
+    linear_scaler = StandardScaler()
+    X_train_linear_scaled = pd.DataFrame(linear_scaler.fit_transform(X_train), columns=X_train.columns)  # Fit en transformeer de trainingsdata
+    X_test_linear_scaled = pd.DataFrame(linear_scaler.transform(X_test), columns=X_test.columns)         # Transformeer de testdata
+    linear_model.fit(X_train_linear_scaled, y_train)
+    # Maak voorspellingen op de trainings-testset
+    linear_predictions_raw = linear_model.predict(X_test_linear_scaled)
+
+    # Afronden naar 0 of 1 voor classificatie
+    linear_predictions = [1 if pred >= 0.88 else 0 for pred in linear_predictions_raw]
+
+    # Evaluatie
+    linear_accuracy = accuracy_score(y_test, linear_predictions)
+
+    # Werk met een kopie van test_df
+    test_df_linear = test_df.copy()
+
+    # Zorg ervoor dat test_df dezelfde preprocessing heeft ondergaan als train_df
+    X_test_df_linear = test_df_linear.drop(columns=['Name', 'Sex', 'Parch', 'SibSp', 'Survived'], errors='ignore')
+
+    # Zorg ervoor dat de kolommen in test_df overeenkomen met die in X_train
+    X_test_df_linear = X_test_df_linear.reindex(columns=X_train.columns, fill_value=0)
+
+    # Schaal de testdata (gebruik dezelfde scaler als voor X_train)
+    X_test_df_linear_scaled = pd.DataFrame(linear_scaler.transform(X_test_df_linear), columns=X_test_df_linear.columns)
+
+    
+    # Maak voorspellingen op de echte testdata
+    test_predictions_linear_raw = linear_model.predict(X_test_df_linear_scaled)
+    test_predictions_linear = [1 if pred >= 0.6 else 0 for pred in test_predictions_linear_raw]
+
+    # Voeg de voorspellingen toe aan test_df
+    test_df_linear['Survived'] = test_predictions_linear
+
+    # Sla de resultaten op in een CSV-bestand
+    output_file_linear = "titanic_lineaire_regressie_predictions.csv"
+    test_df_linear[['PassengerId', 'Survived']].to_csv(output_file_linear, index=False)
+
+    st.info(f"Accuracy (Lineaire Regressie): {linear_accuracy}   \n"
+          f"Voorspellingen opgeslagen in {output_file_linear}")
+    
+    st.subheader('3.4 logistische regressie')
+    # Train een logistisch regressiemodel
+    logistic_model = LogisticRegression(max_iter=1000)
+
+    # Zorg ervoor dat de scaler wordt getraind op de trainingsdata
+    logistic_scaler = StandardScaler()
+    X_train_logistic_scaled = pd.DataFrame(logistic_scaler.fit_transform(X_train), columns=X_train.columns)  # Fit en transformeer de trainingsdata
+    X_test_logistic_scaled = pd.DataFrame(logistic_scaler.transform(X_test), columns=X_test.columns)         # Transformeer de testdata
+
+    # Train het logistische regressiemodel
+    logistic_model.fit(X_train_logistic_scaled, y_train)
+
+    # Maak voorspellingen op de trainings-testset
+    logistic_predictions = logistic_model.predict(X_test_logistic_scaled)
+
+    # Evaluatie
+    logistic_accuracy = accuracy_score(y_test, logistic_predictions)
+
+    # Werk met een kopie van test_df
+    test_df_logistic = test_df.copy()
+
+    # Zorg ervoor dat test_df dezelfde preprocessing heeft ondergaan als train_df
+    X_test_df_logistic = test_df_logistic.drop(columns=['Title', 'Name', 'Sex', 'Ticket', 'Cabin', 'PassengerId', 'Parch', 'SibSp'], axis=1)
+
+    # Controleer of er ontbrekende waarden zijn in X_test_df_logistic en vul deze alleen voor numerieke kolommen
+    numeric_cols_logistic = X_test_df_logistic.select_dtypes(include=['float64', 'int64', 'int32', 'int16'])
+    X_test_df_logistic[numeric_cols_logistic.columns] = numeric_cols_logistic.fillna(numeric_cols_logistic.mean())
+
+    # Zorg ervoor dat de kolommen in test_df overeenkomen met die in X_train
+    X_test_df_logistic = X_test_df_logistic.reindex(columns=X_train.columns, fill_value=0)
+
+    # Schaal de testdata (gebruik dezelfde scaler als voor X_train)
+    X_test_df_logistic_scaled = pd.DataFrame(logistic_scaler.transform(X_test_df_logistic), columns=X_test_df_logistic.columns)
+
+    # Maak voorspellingen op test_df
+    test_predictions_logistic = logistic_model.predict(X_test_df_logistic_scaled)
+
+    # Voeg de voorspellingen toe aan test_df
+    test_df_logistic['Survived'] = test_predictions_logistic
+
+    # Sla de resultaten op in een CSV-bestand
+    output_file_logistic = "titanic_logistische_regressie_predictions.csv"
+    test_df_logistic[['PassengerId', 'Survived']].to_csv(output_file_logistic, index=False)
+
+    st.info(f"Accuracy (Logistische Regressie): {logistic_accuracy}  \n"
+            f"Voorspellingen opgeslagen in {output_file_logistic}")

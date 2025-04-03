@@ -1,5 +1,5 @@
 import streamlit as st
-
+from streamlit_option_menu import option_menu
 
 st.set_page_config(
     page_title="Titanic verbetercase",
@@ -21,13 +21,13 @@ st.markdown('# Veranderingen')
 st.write('Zoals al aangegeven zijn er verschillende veranderingen gedaan. '
 'Om deze veranderingen inzichtelijk te maken is er een keuze te maken voor de soort verandering:')
 
-verandering= st.radio(
-    "",
-    options=["🔍 Nieuwe variabelen", "📊 Visualisaties", "📈 statistiek en modellen"],
-    index=0)
+st.title("🚢 Verbeterpoging")
+with st.sidebar: 
+    pagina = option_menu('Inhoudsopgave', ["Nieuwe variabelen", "Visualisaties", "Statistiek en modellen"], icons=['search', 'bar-chart-line', 'graph-up-arrow'], menu_icon='card-list')
 
-if verandering == "🔍 Nieuwe variabelen":
-    st.header(verandering)
+
+if pagina == "Nieuwe variabelen":
+    st.header(pagina)
     st.write(""
     "- **Bij de eerste keer** is de kolom **Leeftijdscategorie** toegevoegd.  \n"
     "- **Bij de tweede keer** zijn naast de kolom **Leeftijdscategorie** ook de kolommen:  \n"
@@ -35,8 +35,8 @@ if verandering == "🔍 Nieuwe variabelen":
     "   - **Reisgenoten**    \n"
     "   - **Alleen reizen**")
 
-elif verandering == "📊 Visualisaties":
-    st.header(verandering)
+elif pagina == "Visualisaties":
+    st.header(pagina)
     st.write(""
     "- **Eerste keer:** De **correlatiematrix** kreeg feedback dat deze mooier kon.  \n"
     "- **Tweede poging:**  \n"
@@ -44,12 +44,14 @@ elif verandering == "📊 Visualisaties":
     "   - De eerste keer waren de figuren gemaakt met **Matplotlib** en soms **Seaborn**.  \n"
     "   - Nu zijn de figuren grotendeels gemaakt met **Plotly Express**, en sommige nog met **Seaborn**.  \n")
 
-elif verandering == "📈 statistiek en modellen":
-    st.header(verandering)
+elif pagina == "Statistiek en modellen":
+    st.header(pagina)
     st.write(
         "Bij de eerste keer is er niet direct een algoritme gebruikt. Door middel van figuren en percentages zijn er keuzes gemaakt. "
         "Hieruit zijn voorwaarden gesteld om het resultaat te bepalen. Met deze methode is er een Kaggle-score gehaald van **78,47%**.\n"
         
-        "\nBij de tweede keer zijn verschillende algoritmen gebruikt. Er is gekozen om gebruik te maken van **logistische** en **lineaire regressie**. "
-        "Hiermee werden scores gehaald van **76,00%** en **78,00%**."
+        "\nBij de tweede keer zijn verschillende algoritmen gebruikt. Er is gekozen om gebruik te maken van **KNN**, **logistische** en **lineaire regressie**. "
+        "Hiermee werden scores gehaald van **70,81% **76,08%** en **77,75%**."
     )
+
+    

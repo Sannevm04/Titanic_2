@@ -333,13 +333,18 @@ elif pagina == 'Analyse':
         fig.update_traces(text=merged_data['Percentage'].round(2).astype(str) + '%',
                       textposition='outside',
                       texttemplate='%{text}')
+        fig.update_layout(yaxis=dict(range=[0, 100])) 
+        
         # Toon de grafiek
         st.plotly_chart(fig)
 
     # Gebruik de functie
     plot_barchart(train_new)
     
-    st.info("Intressante mogelijkheden zijn: gelacht tegen leeftijd: Dit laat jonge mannen een hogere overlevingskans hebben. De vrouwen lijken allemaal een hoge overlevingskans te hebben")
+    st.info("Intressante mogelijkheden zijn: \n" \
+    "* Gelacht tegen leeftijd: Dit laat jonge mannen een hogere overlevingskans hebben. De vrouwen lijken allemaal een hoge overlevingskans te hebben" \
+    "   * Daarbij is wel goed zichtbaar dat als kinderen geen reisgezelschap hebben hun overlevingskans minimaal is. \n" \
+    "")
     
 elif pagina == 'Voorspellend model':
     st.header('Voorspelling')

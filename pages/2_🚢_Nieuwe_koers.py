@@ -381,8 +381,8 @@ elif pagina == 'Analyse':
         st.plotly_chart(fig)
 
     # Selecteer welke variabelen je wilt plotten (bijvoorbeeld 'Pclass', 'Age', 'Sex')
-    variables_to_plot = st.multiselect('Kies de variabelen om te plotten:', ['Type','Title','Age_categories','IsAlone','Embarked','Pclass','Family','Small_fam'], 
-                                       default=['Type','Title','Age_categories','IsAlone','Embarked','Pclass',"Family", 'Small_fam'])
+    variables_to_plot = st.multiselect('Kies de variabelen om te plotten:', ['Type','Title','Age_categories','IsAlone','Embarked','Pclass','Travel_budy','Small_fam'], 
+                                       default=['Type','Title','Age_categories','IsAlone','Embarked','Pclass',"Travel_budy", 'Small_fam'])
 
     # Grafieken tonen
     plot_multiple_graphs(train_new, variables_to_plot)
@@ -401,7 +401,7 @@ elif pagina == 'Analyse':
     'Om dit te bekijken kunnen 2 variabelen tegen overlevingskans geplot worden.')
     def plot_barchart(data, target='Survived'):
         # Keuze voor de onafhankelijke variabelen
-        keuze = ['Type','Title','Age_categories','IsAlone','Embarked','Pclass',"Family", 'Small_fam']
+        keuze = ['Type','Title','Age_categories','IsAlone','Embarked','Pclass',"Travel_budy", 'Small_fam']
         var1 = st.selectbox('Kies de eerste onafhankelijke variabele:', keuze)
         keuze.remove(var1)
         var2 = st.selectbox('Kies de tweede onafhankelijke variabele:', keuze)
@@ -477,8 +477,6 @@ elif pagina == 'Voorspellend model':
     knn_scaler = StandardScaler()
     X_train_knn_scaled = pd.DataFrame(knn_scaler.fit_transform(X_train), columns=X_train.columns)  # Fit en transformeer de trainingsdata
     X_test_knn_scaled = pd.DataFrame(knn_scaler.transform(X_test), columns=X_test.columns)         # Transformeer de testdata
-    
-    st.write(X_test_knn_scaled.head())
     
     accuracies_scaled = []
     for n in neighbors_range:

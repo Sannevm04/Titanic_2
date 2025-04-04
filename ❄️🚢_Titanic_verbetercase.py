@@ -14,7 +14,7 @@ st.write('Welkom op deze site, waar de Titanic case 2 keer is uitgevoerd. '
 '  \nMet de 2e keer, zijn de visualisaties verbeterd, zijn nieuwe variabele opgeroepen en is er statistisch meer naar de modellen gekeken.')
 
 st.header('Opzet')
-st.write('Voor de opzet is gekozen om gebruik te maken van de streamlit multipager. Dit zorgt ervoor dat je met meerdere streamlit py files werkt en 1 file.'
+st.write('Voor de opzet is gekozen om gebruik te maken van de streamlit multipager. Dit zorgt ervoor dat je met meerdere streamlit py files werkt en 1 hoofdfile.'
 '   \nIn de sidebar valt de keuze te maken tussen de versies (files). Iedere versie is onderverdeeld in hoofdstukken (te kiezen via de inhoudsopgave) en paragraven (in de tekst beschreven)')
 
 st.header('Veranderingen')

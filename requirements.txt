@@ -10,3 +10,4 @@ scipy
 scikit-learn
 streamlit-option-menu
 folium
+streamlit-folium

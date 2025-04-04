@@ -336,7 +336,7 @@ elif pagina == 'Analyse':
     st.header('2. Analyse')
     st.write('De onafhankelijke variabelen zullen hier verder onderzocht worden tegenover de afhankelijke varariabele: overleefingskans.')
     train_new['Age'].fillna(train_new['Age'].median(), inplace=True)
-    train_new['Embarked'].fillna('S', inplace=True)
+    train_new['Embarked'].fillna('Southampthon', inplace=True)
 
     st.subheader('2.1 Individuele variabelen tegenover overlevingskans')
     #demapping
@@ -437,7 +437,7 @@ elif pagina == 'Analyse':
     plot_barchart(train_new)
     
     st.info("Intressante mogelijkheden zijn: \n" \
-    "* Gelacht tegen leeftijd: \n"
+    "* Geslacht tegen leeftijd: \n"
     "   * Dit laat jonge mannen een hogere overlevingskans hebben. \n"
     "   * De vrouwen lijken allemaal een hoge overlevingskans te hebben \n"
     "   * Daarbij is wel goed zichtbaar dat als kinderen geen reisgezelschap hebben hun overlevingskans minimaal is. \n" 
@@ -450,13 +450,20 @@ elif pagina == 'Analyse':
     
 elif pagina == 'Voorspellend model':
     st.header('3. Voorspelling')
+
     train_new['Age'].fillna(train_new['Age'].median(), inplace=True)
     train_new['Embarked'].fillna('Southampthon', inplace=True)
-    st.subheader('3.1 voorbereiding voorspelling')
-    train_new['Embarked'] = train_new['Embarked'].map(embarked_mapping)
-    train_new['Type'] = train_new['Type'].map(type_mapping)
-    X = train_new.drop(columns=['Name', 'Sex', 'Parch', 'SibSp', 'Survived'], axis=1)
+
+    train_new['Embarked_original'] = train_new['Embarked']
+    test_df['Embarked_original'] = test_df['Embarked']
+    train_new['Type_original'] = train_new['Type']
+    test_df['Type_original'] = test_df['Type']
+    train_new = pd.get_dummies(train_new, columns=['Embarked', 'Type'], prefix=['Embarked', 'Type'])
+    test_df = pd.get_dummies(test_df, columns=['Embarked', 'Type'], prefix=['Embarked', 'Type'])
+    X = train_new.drop(columns=['Name', 'Sex', 'Parch', 'SibSp', 'Survived','Type_original','Embarked_original'], axis=1)
     y = train_new['Survived']
+
+    st.subheader('3.1 voorbereiding voorspelling')
     st.write('De kolommen die meegenomen worden in de analyse zijn:')
     st.write(X.head())
     scaler = StandardScaler()
@@ -464,7 +471,7 @@ elif pagina == 'Voorspellend model':
 
     # Modellen
     # Test verschillende waarden van n_neighbors
-    neighbors_range = range(1, 31)  # Test n_neighbors van 1 tot 20
+    neighbors_range = range(1, 21)  # Test n_neighbors van 1 tot 20
     
     # Zorg ervoor dat de scaler wordt getraind op de trainingsdata
     knn_scaler = StandardScaler()
@@ -498,7 +505,7 @@ elif pagina == 'Voorspellend model':
     st.pyplot(fig)
 
     # Train een KNN-model met 3 buren
-    knn_model = KNeighborsClassifier(n_neighbors=17)
+    knn_model = KNeighborsClassifier(n_neighbors=8)
     knn_scaler = StandardScaler()
     X_train_knn_scaled = pd.DataFrame(knn_scaler.fit_transform(X_train), columns=X_train.columns)
     X_test_knn_scaled = pd.DataFrame(knn_scaler.transform(X_test), columns=X_test.columns)
@@ -509,13 +516,11 @@ elif pagina == 'Voorspellend model':
     knn_accuracy = accuracy_score(y_test, knn_predictions)
     st.write()
 
-    test_df['Embarked'] = test_df['Embarked'].map(embarked_mapping)
-    test_df['Type'] = test_df['Type'].map(type_mapping)
     test_df_knn = test_df.copy()
 
     
     # Zorg ervoor dat test_df dezelfde preprocessing heeft ondergaan als train_df
-    X_test_df_knn = test_df_knn.drop(columns=['Name', 'Sex', 'Parch', 'SibSp', 'Survived','Travel_budy'], errors='ignore')
+    X_test_df_knn = test_df_knn.drop(columns=['Name', 'Sex', 'Parch', 'SibSp', 'Survived','Type_original','Embarked_original'], errors='ignore')
     X_test_df_knn = X_test_df_knn.reindex(columns=X_train.columns, fill_value=0)
 
     # Schaal de testdata (gebruik dezelfde scaler als voor X_train)
@@ -554,7 +559,7 @@ elif pagina == 'Voorspellend model':
     test_df_linear = test_df.copy()
 
     # Zorg ervoor dat test_df dezelfde preprocessing heeft ondergaan als train_df
-    X_test_df_linear = test_df_linear.drop(columns=['Name', 'Sex', 'Parch', 'SibSp', 'Survived','Travel_budy'], errors='ignore')
+    X_test_df_linear = test_df_linear.drop(columns=['Name', 'Sex', 'Parch', 'SibSp', 'Survived','Type_original','Embarked_original'], errors='ignore')
 
     # Zorg ervoor dat de kolommen in test_df overeenkomen met die in X_train
     X_test_df_linear = X_test_df_linear.reindex(columns=X_train.columns, fill_value=0)
@@ -601,7 +606,7 @@ elif pagina == 'Voorspellend model':
     test_df_logistic = test_df.copy()
 
     # Zorg ervoor dat test_df dezelfde preprocessing heeft ondergaan als train_df
-    X_test_df_logistic = test_df_logistic.drop(columns=['Name', 'Sex', 'Parch', 'SibSp','Travel_budy'], axis=1)
+    X_test_df_logistic = test_df_logistic.drop(columns=['Name', 'Sex', 'Parch', 'SibSp','Type_original','Embarked_original'], axis=1)
 
     # Controleer of er ontbrekende waarden zijn in X_test_df_logistic en vul deze alleen voor numerieke kolommen
     numeric_cols_logistic = X_test_df_logistic.select_dtypes(include=['float64', 'int64', 'int32', 'int16'])

@@ -59,8 +59,7 @@ elif pagina == 'Analyse':
     st.header('2. Analyse')
     overleden_overleefd_gem = train_old['Survived'].mean()*100
     st.write(f'Wat was uberhaupt de overlevingskans?  \nOveral gezien is er een overlevingskans van: {np.round(overleden_overleefd_gem,2)}%')
-        
-    st.write('En wat heeft daar allemala invloed op?')
+    st.write('En wat heeft daar allemaal invloed op?')
     train_old['Sex'] = train_old['Sex'].replace({'male':0, 'female':1})
     train_old['Embarked'] = train_old['Embarked'].replace({'S':1,'C':2,'Q':3})
     correlatie_matrix = train_old.corr()
